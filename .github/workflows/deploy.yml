@@ -34,60 +34,8 @@ jobs:
       - name: Build with Next.js
         run: npm run build
 
-      - name: Export static files manually
-        run: |
-          # Create static export manually for GitHub Pages
-          mkdir -p out
-          
-          # Copy static assets
-          cp -r .next/static out/_next/static
-          cp -r public/* out/
-          
-          # Create main index.html
-          echo '<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>Countdown Timer</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script>
-    // Redirect to main page and let client-side routing handle it
-    sessionStorage.setItem("redirect", location.pathname + location.search + location.hash);
-    location.replace("/countdown/");
-  </script>
-</head>
-<body>
-  <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif;">
-    <div style="text-align: center;">
-      <h1>Countdown Timer</h1>
-      <p>Redirecting...</p>
-    </div>
-  </div>
-</body>
-</html>' > out/index.html
-          
-          # Create 404.html for GitHub Pages SPA support
-          echo '<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>Countdown Timer</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script>
-    // GitHub Pages SPA redirect helper
-    sessionStorage.setItem("redirect", location.pathname + location.search + location.hash);
-    location.replace("/countdown/");
-  </script>
-</head>
-<body>
-  <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif;">
-    <div style="text-align: center;">
-      <h1>Countdown Timer</h1>
-      <p>Redirecting...</p>
-    </div>
-  </div>
-</body>
-</html>' > out/404.html
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
