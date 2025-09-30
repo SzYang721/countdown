@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'export',
+  // Remove static export to support dynamic routes properly
   basePath: '/countdown',
   trailingSlash: true,
   images: {
