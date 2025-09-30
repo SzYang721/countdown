@@ -82,6 +82,7 @@ export default function Home() {
     const files = Array.from(e.target.files || []);
     
     for (const file of files) {
+      // Check if it's a valid image file
       if (file.type.startsWith('image/') || 
           file.type === 'image/heif' || 
           file.type === 'image/heic' ||
@@ -97,20 +98,25 @@ export default function Home() {
             
             console.log('Converting HEIC/HEIF file:', file.name);
             
-            // Dynamically import heic2any
-            const heic2any = (await import('heic2any')).default;
-            
-            // Convert HEIC to JPEG using heic2any
-            const convertedBlob = await heic2any({
-              blob: file,
-              toType: 'image/jpeg',
-              quality: 0.8
-            });
-            
-            // heic2any returns an array, take the first element and ensure it's a proper File
-            const blob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
-            processedFile = new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
-            console.log('HEIC conversion successful');
+            try {
+              // Dynamically import heic2any
+              const heic2any = (await import('heic2any')).default;
+              
+              // Convert HEIC to JPEG using heic2any
+              const convertedBlob = await heic2any({
+                blob: file,
+                toType: 'image/jpeg',
+                quality: 0.8
+              });
+              
+              // heic2any returns an array, take the first element and ensure it's a proper File
+              const blob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+              processedFile = new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
+              console.log('HEIC conversion successful');
+            } catch (heicError) {
+              console.warn('HEIC conversion failed, skipping file:', file.name, heicError);
+              continue; // Skip this file and continue with the next one
+            }
           }
           
           const reader = new FileReader();
@@ -128,9 +134,12 @@ export default function Home() {
           reader.readAsDataURL(processedFile);
           
         } catch (error) {
-          console.error('Error processing image:', error);
-          alert('Error processing image: ' + (error as Error).message);
+          console.error('Error processing image:', file.name, error);
+          // Don't show alert for individual file errors, just log them
+          // This prevents the ERR_LIBHEIF error from stopping the entire upload process
         }
+      } else {
+        console.warn('Skipping non-image file:', file.name);
       }
     }
     
@@ -387,6 +396,10 @@ export default function Home() {
                 <button
                   type="button"
                   className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent event bubbling to parent div
+                    fileInputRef.current?.click();
+                  }}
                 >
                   Choose Images
                 </button>

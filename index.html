@@ -306,17 +306,22 @@
                     
                     console.log('Converting HEIC/HEIF file:', file.name);
                     
-                    // Convert HEIC to JPEG using heic2any
-                    const convertedBlob = await heic2any({
-                        blob: file,
-                        toType: 'image/jpeg',
-                        quality: 0.8
-                    });
-                    
-                    // heic2any returns an array, take the first element and ensure it's a Blob
-                    const blob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
-                    processedFile = new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
-                    console.log('HEIC conversion successful');
+                    try {
+                        // Convert HEIC to JPEG using heic2any
+                        const convertedBlob = await heic2any({
+                            blob: file,
+                            toType: 'image/jpeg',
+                            quality: 0.8
+                        });
+                        
+                        // heic2any returns an array, take the first element and ensure it's a Blob
+                        const blob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+                        processedFile = new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
+                        console.log('HEIC conversion successful');
+                    } catch (heicError) {
+                        console.warn('HEIC conversion failed, skipping file:', file.name, heicError);
+                        return; // Skip this file and continue with the next one
+                    }
                 }
                 
                 const reader = new FileReader();
@@ -333,8 +338,9 @@
                 reader.readAsDataURL(processedFile);
                 
             } catch (error) {
-                console.error('Error processing image:', error);
-                alert('Error processing image: ' + error.message);
+                console.error('Error processing image:', file.name, error);
+                // Don't show alert for individual file errors, just log them
+                // This prevents the ERR_LIBHEIF error from stopping the entire upload process
             }
         }
         
@@ -498,7 +504,7 @@
                                     <div class="image-dropzone" id="imageDropzone">
                                         <p class="text-gray-600 mb-2">Drop images here or click to upload</p>
                                         <input type="file" id="imageInput" multiple accept="image/*,image/heif,image/heic,.heif,.heic" style="display: none;">
-                                        <button type="button" onclick="document.getElementById('imageInput').click()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                                        <button type="button" onclick="event.stopPropagation(); document.getElementById('imageInput').click()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
                                             Choose Images
                                         </button>
                                     </div>
@@ -640,12 +646,15 @@
                     const files = Array.from(e.target.files);
                     console.log('Files selected:', files);
                     for (const file of files) {
+                        // Check if it's a valid image file
                         if (file.type.startsWith('image/') || 
                             file.type === 'image/heif' || 
                             file.type === 'image/heic' ||
                             file.name.toLowerCase().endsWith('.heif') ||
                             file.name.toLowerCase().endsWith('.heic')) {
                             await addBackgroundImage(file);
+                        } else {
+                            console.warn('Skipping non-image file:', file.name);
                         }
                     }
                     // Reset the file input to allow selecting the same file again
@@ -669,12 +678,15 @@
                     const files = Array.from(e.dataTransfer.files);
                     console.log('Files dropped:', files);
                     for (const file of files) {
+                        // Check if it's a valid image file
                         if (file.type.startsWith('image/') || 
                             file.type === 'image/heif' || 
                             file.type === 'image/heic' ||
                             file.name.toLowerCase().endsWith('.heif') ||
                             file.name.toLowerCase().endsWith('.heic')) {
                             await addBackgroundImage(file);
+                        } else {
+                            console.warn('Skipping non-image file:', file.name);
                         }
                     }
                 });
