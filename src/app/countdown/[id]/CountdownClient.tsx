@@ -13,6 +13,7 @@ export function CountdownClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showEditForm, setShowEditForm] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const id = params.id as string;
 
@@ -50,6 +51,19 @@ export function CountdownClient() {
 
     return () => clearInterval(interval);
   }, [countdown]);
+
+  // Background image rotation effect
+  useEffect(() => {
+    if (!countdown?.backgroundImages || countdown.backgroundImages.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setCurrentImageIndex(prev => 
+        (prev + 1) % countdown.backgroundImages!.length
+      );
+    }, (countdown.imageInterval || 5) * 1000);
+
+    return () => clearInterval(interval);
+  }, [countdown?.backgroundImages, countdown?.imageInterval]);
 
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this countdown?')) return;
@@ -102,13 +116,20 @@ export function CountdownClient() {
     fontSize: countdown.customization.fontSize,
   };
 
+  const backgroundImageStyle = countdown.backgroundImages && countdown.backgroundImages.length > 0 ? {
+    backgroundImage: `url(${countdown.backgroundImages[currentImageIndex]?.data})`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat',
+  } : {};
+
   const titleStyle = {
     color: countdown.customization.titleColor,
     fontFamily: countdown.customization.fontFamily,
   };
 
   return (
-    <div className="min-h-screen flex flex-col" style={customStyle}>
+    <div className="min-h-screen flex flex-col" style={{...customStyle, ...backgroundImageStyle}}>
       {/* Control Bar */}
       <div className="bg-gray-100 border-b p-4 flex justify-between items-center text-black">
         <div className="flex space-x-2">

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getTimezoneOptions, getFontOptions } from '@/lib/countdown-utils';
 import { createCountdown } from '@/lib/client-database';
+import { v4 as uuidv4 } from 'uuid';
 
 export default function Home() {
   const router = useRouter();
@@ -26,6 +27,8 @@ export default function Home() {
       fontFamily: 'Arial, sans-serif',
       fontSize: '18px',
     },
+    backgroundImages: [] as { id: string; data: string; name: string }[],
+    imageInterval: 5,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,7 +42,7 @@ export default function Home() {
       });
       
       router.push(`/countdown/${id}`);
-    } catch (error) {
+    } catch {
       alert('Failed to create countdown');
     } finally {
       setLoading(false);
@@ -70,6 +73,47 @@ export default function Home() {
         ...prev.workingHours,
         [field]: value,
       },
+    }));
+  };
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    files.forEach(file => {
+      if (file.type.startsWith('image/') || 
+          file.type === 'image/heif' || 
+          file.type === 'image/heic' ||
+          file.name.toLowerCase().endsWith('.heif') ||
+          file.name.toLowerCase().endsWith('.heic')) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const imageData = {
+            id: uuidv4(),
+            data: event.target?.result as string,
+            name: file.name
+          };
+          setFormData(prev => ({
+            ...prev,
+            backgroundImages: [...prev.backgroundImages, imageData]
+          }));
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  };
+
+  const removeImage = (imageId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      backgroundImages: prev.backgroundImages.filter(img => img.id !== imageId)
+    }));
+  };
+
+  const handleImageIntervalChange = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      imageInterval: parseInt(value)
     }));
   };
 
@@ -283,6 +327,70 @@ export default function Home() {
                   <option value="28px">Extra Large (28px)</option>
                 </select>
               </div>
+            </div>
+
+            {/* Background Images */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-black">Background Images</h2>
+              
+              <div 
+                className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 cursor-pointer"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <p className="text-gray-600 mb-2">Drop images here or click to upload</p>
+                <p className="text-sm text-gray-500 mb-4">Supports JPG, PNG, GIF, WebP, HEIF, HEIC</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*,image/heif,image/heic,.heif,.heic"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                >
+                  Choose Images
+                </button>
+              </div>
+              
+              {formData.backgroundImages.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {formData.backgroundImages.map(img => (
+                    <div key={img.id} className="relative">
+                      <img 
+                        src={img.data} 
+                        alt={img.name}
+                        className="w-20 h-20 object-cover rounded border"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(img.id)}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {formData.backgroundImages.length > 1 && (
+                <div>
+                  <label className="block text-sm font-medium text-black mb-2">
+                    Image Rotation Interval (seconds)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="60"
+                    value={formData.imageInterval}
+                    onChange={(e) => handleImageIntervalChange(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                  />
+                </div>
+              )}
             </div>
 
             <button

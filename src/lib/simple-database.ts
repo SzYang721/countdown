@@ -19,6 +19,12 @@ export interface Countdown {
     fontFamily: string;
     fontSize: string;
   };
+  backgroundImages?: {
+    id: string;
+    data: string;
+    name: string;
+  }[];
+  imageInterval?: number;
   createdAt: string;
   updatedAt: string;
 }

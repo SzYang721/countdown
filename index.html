@@ -469,7 +469,7 @@
                                     
                                     <div class="image-dropzone" id="imageDropzone">
                                         <p class="text-gray-600 mb-2">Drop images here or click to upload</p>
-                                        <input type="file" id="imageInput" multiple accept="image/*" style="display: none;">
+                                        <input type="file" id="imageInput" multiple accept="image/*,image/heif,image/heic,.heif,.heic" style="display: none;">
                                         <button type="button" onclick="document.getElementById('imageInput').click()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
                                             Choose Images
                                         </button>
@@ -612,7 +612,11 @@
                     const files = Array.from(e.target.files);
                     console.log('Files selected:', files);
                     files.forEach(file => {
-                        if (file.type.startsWith('image/')) {
+                        if (file.type.startsWith('image/') || 
+                            file.type === 'image/heif' || 
+                            file.type === 'image/heic' ||
+                            file.name.toLowerCase().endsWith('.heif') ||
+                            file.name.toLowerCase().endsWith('.heic')) {
                             addBackgroundImage(file);
                         }
                     });
@@ -635,7 +639,11 @@
                     const files = Array.from(e.dataTransfer.files);
                     console.log('Files dropped:', files);
                     files.forEach(file => {
-                        if (file.type.startsWith('image/')) {
+                        if (file.type.startsWith('image/') || 
+                            file.type === 'image/heif' || 
+                            file.type === 'image/heic' ||
+                            file.name.toLowerCase().endsWith('.heif') ||
+                            file.name.toLowerCase().endsWith('.heic')) {
                             addBackgroundImage(file);
                         }
                     });
