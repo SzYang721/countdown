@@ -283,7 +283,7 @@
             imageInterval = getImageInterval();
         }
         
-        function saveBackgroundImages() {
+        function saveBackgroundImagesToStorage() {
             saveBackgroundImages(backgroundImages);
         }
         
@@ -296,7 +296,7 @@
                     name: file.name
                 };
                 backgroundImages.push(imageData);
-                saveBackgroundImages();
+                saveBackgroundImagesToStorage();
                 renderForm(); // Refresh form to show new images
             };
             reader.readAsDataURL(file);
@@ -304,7 +304,7 @@
         
         function removeBackgroundImage(imageId) {
             backgroundImages = backgroundImages.filter(img => img.id !== imageId);
-            saveBackgroundImages();
+            saveBackgroundImagesToStorage();
             renderForm(); // Refresh form to show updated images
         }
         
@@ -561,82 +561,106 @@
         }
         
         function setupImageUpload() {
-            const dropzone = document.getElementById('imageDropzone');
-            const fileInput = document.getElementById('imageInput');
-            
-            // Click to upload
-            dropzone.addEventListener('click', () => {
-                fileInput.click();
-            });
-            
-            // File input change
-            fileInput.addEventListener('change', (e) => {
-                const files = Array.from(e.target.files);
-                files.forEach(file => {
-                    if (file.type.startsWith('image/')) {
-                        addBackgroundImage(file);
-                    }
-                });
-            });
-            
-            // Drag and drop
-            dropzone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                dropzone.classList.add('dragover');
-            });
-            
-            dropzone.addEventListener('dragleave', () => {
-                dropzone.classList.remove('dragover');
-            });
-            
-            dropzone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                dropzone.classList.remove('dragover');
+            // Wait a bit for the DOM to be ready
+            setTimeout(() => {
+                const dropzone = document.getElementById('imageDropzone');
+                const fileInput = document.getElementById('imageInput');
                 
-                const files = Array.from(e.dataTransfer.files);
-                files.forEach(file => {
-                    if (file.type.startsWith('image/')) {
-                        addBackgroundImage(file);
-                    }
+                if (!dropzone || !fileInput) {
+                    console.error('Image upload elements not found');
+                    return;
+                }
+                
+                console.log('Setting up image upload...');
+                
+                // Click to upload
+                dropzone.addEventListener('click', () => {
+                    fileInput.click();
                 });
-            });
+                
+                // File input change
+                fileInput.addEventListener('change', (e) => {
+                    const files = Array.from(e.target.files);
+                    console.log('Files selected:', files);
+                    files.forEach(file => {
+                        if (file.type.startsWith('image/')) {
+                            addBackgroundImage(file);
+                        }
+                    });
+                });
+                
+                // Drag and drop
+                dropzone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    dropzone.classList.add('dragover');
+                });
+                
+                dropzone.addEventListener('dragleave', () => {
+                    dropzone.classList.remove('dragover');
+                });
+                
+                dropzone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    dropzone.classList.remove('dragover');
+                    
+                    const files = Array.from(e.dataTransfer.files);
+                    console.log('Files dropped:', files);
+                    files.forEach(file => {
+                        if (file.type.startsWith('image/')) {
+                            addBackgroundImage(file);
+                        }
+                    });
+                });
+            }, 100);
         }
         
         function handleFormSubmit(e) {
             e.preventDefault();
+            console.log('Form submitted!');
             
-            const formData = {
-                title: document.getElementById('title').value,
-                targetDate: document.getElementById('targetDate').value,
-                timezone: document.getElementById('timezone').value,
-                location: document.getElementById('location').value,
-                countType: document.querySelector('input[name="countType"]:checked').value,
-                workingHours: {
-                    start: '09:00',
-                    end: '17:00',
-                    excludeWeekends: true,
-                },
-                customization: {
-                    backgroundColor: document.getElementById('backgroundColor').value,
-                    textColor: document.getElementById('textColor').value,
-                    titleColor: document.getElementById('titleColor').value,
-                    fontFamily: document.getElementById('fontFamily').value,
-                    fontSize: document.getElementById('fontSize').value,
-                },
-            };
-            
-            // Save image interval if set
-            const intervalInput = document.getElementById('imageInterval');
-            if (intervalInput) {
-                imageInterval = parseInt(intervalInput.value);
-                saveImageInterval(imageInterval);
+            try {
+                const formData = {
+                    title: document.getElementById('title').value,
+                    targetDate: document.getElementById('targetDate').value,
+                    timezone: document.getElementById('timezone').value,
+                    location: document.getElementById('location').value,
+                    countType: document.querySelector('input[name="countType"]:checked').value,
+                    workingHours: {
+                        start: '09:00',
+                        end: '17:00',
+                        excludeWeekends: true,
+                    },
+                    customization: {
+                        backgroundColor: document.getElementById('backgroundColor').value,
+                        textColor: document.getElementById('textColor').value,
+                        titleColor: document.getElementById('titleColor').value,
+                        fontFamily: document.getElementById('fontFamily').value,
+                        fontSize: document.getElementById('fontSize').value,
+                    },
+                };
+                
+                console.log('Form data collected:', formData);
+                
+                // Save image interval if set
+                const intervalInput = document.getElementById('imageInterval');
+                if (intervalInput) {
+                    imageInterval = parseInt(intervalInput.value);
+                    saveImageInterval(imageInterval);
+                }
+                
+                console.log('Creating countdown with data:', formData);
+                
+                const id = createCountdown(formData);
+                console.log('Created countdown with ID:', id);
+                
+                // Update URL hash to include the countdown ID
+                window.location.hash = `#/countdown/${id}`;
+                
+                showCountdown(id);
+            } catch (error) {
+                console.error('Error creating countdown:', error);
+                alert('Error creating countdown: ' + error.message);
             }
-            
-            console.log('Creating countdown with data:', formData);
-            
-            const id = createCountdown(formData);
-            console.log('Created countdown with ID:', id);
-            showCountdown(id);
         }
         
         function showCountdown(id) {
