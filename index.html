@@ -704,6 +704,8 @@
                         fontFamily: document.getElementById('fontFamily').value,
                         fontSize: document.getElementById('fontSize').value,
                     },
+                    backgroundImages: backgroundImages,
+                    imageInterval: imageInterval,
                 };
                 
                 console.log('Form data collected:', formData);
@@ -739,6 +741,19 @@
                 return;
             }
             
+            // Load background images from countdown data
+            if (currentCountdown.backgroundImages) {
+                backgroundImages = currentCountdown.backgroundImages;
+            } else {
+                backgroundImages = [];
+            }
+            
+            if (currentCountdown.imageInterval) {
+                imageInterval = currentCountdown.imageInterval;
+            } else {
+                imageInterval = 5;
+            }
+            
             currentView = 'countdown';
             renderCountdown();
             startCountdownTimer();
@@ -761,7 +776,7 @@
             
             // Set background image if available
             let backgroundStyle = customStyle;
-            if (backgroundImages.length > 0) {
+            if (backgroundImages && backgroundImages.length > 0) {
                 const currentImage = backgroundImages[currentImageIndex];
                 backgroundStyle += `background-image: url(${currentImage.data}); background-size: cover; background-position: center; background-repeat: no-repeat;`;
             }
@@ -862,6 +877,14 @@
             
             updateCountdown();
             setInterval(updateCountdown, 1000);
+            
+            // Start background image rotation if there are multiple images
+            if (backgroundImages && backgroundImages.length > 1) {
+                imageTimer = setInterval(() => {
+                    currentImageIndex = (currentImageIndex + 1) % backgroundImages.length;
+                    renderCountdown(); // Re-render to update background image
+                }, imageInterval * 1000);
+            }
         }
         
         function copyShareUrl() {
