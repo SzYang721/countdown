@@ -28,6 +28,60 @@
                 font-size: 2rem;
             }
         }
+        
+        /* Background image styles */
+        .background-container {
+            position: relative;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            transition: background-image 0.5s ease-in-out;
+        }
+        
+        .image-dropzone {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+        
+        .image-dropzone:hover {
+            border-color: #007bff;
+        }
+        
+        .image-dropzone.dragover {
+            border-color: #007bff;
+            background-color: #f0f8ff;
+        }
+        
+        .image-preview {
+            display: inline-block;
+            margin: 5px;
+            position: relative;
+        }
+        
+        .image-preview img {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        
+        .image-preview .remove-btn {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: red;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body class="min-h-screen bg-gray-50">
@@ -38,6 +92,8 @@
     <script>
         // Countdown data storage
         const STORAGE_KEY = 'countdowns';
+        const IMAGES_KEY = 'backgroundImages';
+        const IMAGE_INTERVAL_KEY = 'imageInterval';
         
         // Get countdowns from localStorage
         function getStoredCountdowns() {
@@ -56,6 +112,45 @@
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(countdowns));
             } catch (error) {
                 console.error('Error saving to localStorage:', error);
+            }
+        }
+        
+        // Get background images from localStorage
+        function getBackgroundImages() {
+            try {
+                const stored = localStorage.getItem(IMAGES_KEY);
+                return stored ? JSON.parse(stored) : [];
+            } catch (error) {
+                console.error('Error reading images from localStorage:', error);
+                return [];
+            }
+        }
+        
+        // Save background images to localStorage
+        function saveBackgroundImages(images) {
+            try {
+                localStorage.setItem(IMAGES_KEY, JSON.stringify(images));
+            } catch (error) {
+                console.error('Error saving images to localStorage:', error);
+            }
+        }
+        
+        // Get image interval from localStorage
+        function getImageInterval() {
+            try {
+                const stored = localStorage.getItem(IMAGE_INTERVAL_KEY);
+                return stored ? parseInt(stored) : 5; // Default 5 seconds
+            } catch (error) {
+                return 5;
+            }
+        }
+        
+        // Save image interval to localStorage
+        function saveImageInterval(interval) {
+            try {
+                localStorage.setItem(IMAGE_INTERVAL_KEY, interval.toString());
+            } catch (error) {
+                console.error('Error saving image interval:', error);
             }
         }
         
@@ -177,28 +272,73 @@
         let currentView = 'form'; // 'form' or 'countdown'
         let currentCountdown = null;
         let timeRemaining = null;
+        let backgroundImages = [];
+        let currentImageIndex = 0;
+        let imageInterval = 5; // seconds
+        let imageTimer = null;
+        
+        // Background image management
+        function loadBackgroundImages() {
+            backgroundImages = getBackgroundImages();
+            imageInterval = getImageInterval();
+        }
+        
+        function saveBackgroundImages() {
+            saveBackgroundImages(backgroundImages);
+        }
+        
+        function addBackgroundImage(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imageData = {
+                    id: uuid.v4(),
+                    data: e.target.result,
+                    name: file.name
+                };
+                backgroundImages.push(imageData);
+                saveBackgroundImages();
+                renderForm(); // Refresh form to show new images
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function removeBackgroundImage(imageId) {
+            backgroundImages = backgroundImages.filter(img => img.id !== imageId);
+            saveBackgroundImages();
+            renderForm(); // Refresh form to show updated images
+        }
+        
+        function startBackgroundImageRotation() {
+            if (backgroundImages.length <= 1) return;
+            
+            if (imageTimer) clearInterval(imageTimer);
+            
+            imageTimer = setInterval(() => {
+                currentImageIndex = (currentImageIndex + 1) % backgroundImages.length;
+                updateBackgroundImage();
+            }, imageInterval * 1000);
+        }
+        
+        function stopBackgroundImageRotation() {
+            if (imageTimer) {
+                clearInterval(imageTimer);
+                imageTimer = null;
+            }
+        }
+        
+        function updateBackgroundImage() {
+            if (backgroundImages.length === 0) return;
+            
+            const currentImage = backgroundImages[currentImageIndex];
+            const container = document.querySelector('.background-container');
+            if (container) {
+                container.style.backgroundImage = `url(${currentImage.data})`;
+            }
+        }
         
         // Render functions
         function renderForm() {
-            const formData = {
-                title: '',
-                targetDate: '',
-                timezone: 'UTC',
-                location: '',
-                countType: 'natural',
-                workingHours: {
-                    start: '09:00',
-                    end: '17:00',
-                    excludeWeekends: true,
-                },
-                customization: {
-                    backgroundColor: '#ffffff',
-                    textColor: '#1a1a1a',
-                    titleColor: '#000000',
-                    fontFamily: 'Arial, sans-serif',
-                    fontSize: '18px',
-                },
-            };
+            loadBackgroundImages();
             
             document.getElementById('app').innerHTML = `
                 <div class="min-h-screen bg-gray-50 py-12 px-4">
@@ -292,6 +432,44 @@
                                     </div>
                                 </div>
 
+                                <!-- Background Images -->
+                                <div class="space-y-4">
+                                    <h2 class="text-xl font-semibold text-black">Background Images</h2>
+                                    
+                                    <div class="image-dropzone" id="imageDropzone">
+                                        <p class="text-gray-600 mb-2">Drop images here or click to upload</p>
+                                        <input type="file" id="imageInput" multiple accept="image/*" style="display: none;">
+                                        <button type="button" onclick="document.getElementById('imageInput').click()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                                            Choose Images
+                                        </button>
+                                    </div>
+                                    
+                                    <div id="imagePreviews" class="flex flex-wrap gap-2">
+                                        ${backgroundImages.map(img => `
+                                            <div class="image-preview">
+                                                <img src="${img.data}" alt="${img.name}">
+                                                <button type="button" class="remove-btn" onclick="removeBackgroundImage('${img.id}')">×</button>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                    
+                                    ${backgroundImages.length > 1 ? `
+                                        <div>
+                                            <label class="block text-sm font-medium text-black mb-2">
+                                                Image Change Interval (seconds)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                id="imageInterval"
+                                                min="1"
+                                                max="60"
+                                                value="${imageInterval}"
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                                            />
+                                        </div>
+                                    ` : ''}
+                                </div>
+
                                 <!-- Customization -->
                                 <div class="space-y-4">
                                     <h2 class="text-xl font-semibold text-black">Customization</h2>
@@ -377,6 +555,51 @@
             
             // Add form submission handler
             document.getElementById('countdownForm').addEventListener('submit', handleFormSubmit);
+            
+            // Add image upload handlers
+            setupImageUpload();
+        }
+        
+        function setupImageUpload() {
+            const dropzone = document.getElementById('imageDropzone');
+            const fileInput = document.getElementById('imageInput');
+            
+            // Click to upload
+            dropzone.addEventListener('click', () => {
+                fileInput.click();
+            });
+            
+            // File input change
+            fileInput.addEventListener('change', (e) => {
+                const files = Array.from(e.target.files);
+                files.forEach(file => {
+                    if (file.type.startsWith('image/')) {
+                        addBackgroundImage(file);
+                    }
+                });
+            });
+            
+            // Drag and drop
+            dropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropzone.classList.add('dragover');
+            });
+            
+            dropzone.addEventListener('dragleave', () => {
+                dropzone.classList.remove('dragover');
+            });
+            
+            dropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('dragover');
+                
+                const files = Array.from(e.dataTransfer.files);
+                files.forEach(file => {
+                    if (file.type.startsWith('image/')) {
+                        addBackgroundImage(file);
+                    }
+                });
+            });
         }
         
         function handleFormSubmit(e) {
@@ -402,12 +625,24 @@
                 },
             };
             
+            // Save image interval if set
+            const intervalInput = document.getElementById('imageInterval');
+            if (intervalInput) {
+                imageInterval = parseInt(intervalInput.value);
+                saveImageInterval(imageInterval);
+            }
+            
+            console.log('Creating countdown with data:', formData);
+            
             const id = createCountdown(formData);
+            console.log('Created countdown with ID:', id);
             showCountdown(id);
         }
         
         function showCountdown(id) {
             currentCountdown = getCountdown(id);
+            console.log('Retrieved countdown:', currentCountdown);
+            
             if (!currentCountdown) {
                 alert('Countdown not found');
                 return;
@@ -433,8 +668,15 @@
                 font-family: ${currentCountdown.customization.fontFamily};
             `;
             
+            // Set background image if available
+            let backgroundStyle = customStyle;
+            if (backgroundImages.length > 0) {
+                const currentImage = backgroundImages[currentImageIndex];
+                backgroundStyle += `background-image: url(${currentImage.data}); background-size: cover; background-position: center; background-repeat: no-repeat;`;
+            }
+            
             document.getElementById('app').innerHTML = `
-                <div class="min-h-screen flex flex-col" style="${customStyle}">
+                <div class="min-h-screen flex flex-col background-container" style="${backgroundStyle}">
                     <!-- Control Bar -->
                     <div class="bg-gray-100 border-b p-4 flex justify-between items-center text-black">
                         <div class="flex space-x-2">
@@ -479,6 +721,11 @@
                     </div>
                 </div>
             `;
+            
+            // Start background image rotation if multiple images
+            if (backgroundImages.length > 1) {
+                startBackgroundImageRotation();
+            }
         }
         
         function startCountdownTimer() {
@@ -489,6 +736,8 @@
                 const display = document.getElementById('countdownDisplay');
                 
                 if (!display) return;
+                
+                console.log('Time remaining:', timeRemaining);
                 
                 if (timeRemaining.isExpired) {
                     display.innerHTML = `
