@@ -78,9 +78,7 @@ export default function Home() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    
+  const processFiles = async (files: File[]) => {
     for (const file of files) {
       // Check if it's a valid image file
       if (file.type.startsWith('image/') || 
@@ -142,11 +140,29 @@ export default function Home() {
         console.warn('Skipping non-image file:', file.name);
       }
     }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    await processFiles(files);
     
     // Reset the file input to allow selecting the same file again
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const files = Array.from(e.dataTransfer.files);
+    await processFiles(files);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
   };
 
   const removeImage = (imageId: string) => {
@@ -381,6 +397,8 @@ export default function Home() {
               
               <div 
                 className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 cursor-pointer"
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
                 onClick={() => fileInputRef.current?.click()}
               >
                 <p className="text-gray-600 mb-2">Drop images here or click to upload</p>
@@ -397,8 +415,7 @@ export default function Home() {
                   type="button"
                   className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
                   onClick={(e) => {
-                    e.stopPropagation(); // Prevent event bubbling to parent div
-                    fileInputRef.current?.click();
+                    e.stopPropagation();
                   }}
                 >
                   Choose Images
