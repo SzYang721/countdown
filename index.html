@@ -305,7 +305,7 @@
                 };
                 backgroundImages.push(imageData);
                 saveBackgroundImagesToStorage();
-                renderForm(); // Refresh form to show new images
+                updateImagePreviews(); // Only update image previews, not the entire form
             };
             reader.readAsDataURL(file);
         }
@@ -313,7 +313,30 @@
         function removeBackgroundImage(imageId) {
             backgroundImages = backgroundImages.filter(img => img.id !== imageId);
             saveBackgroundImagesToStorage();
-            renderForm(); // Refresh form to show updated images
+            updateImagePreviews(); // Only update image previews, not the entire form
+        }
+        
+        function updateImagePreviews() {
+            const imagePreviews = document.getElementById('imagePreviews');
+            if (!imagePreviews) return;
+            
+            // Update image previews
+            imagePreviews.innerHTML = backgroundImages.map(img => `
+                <div class="image-preview">
+                    <img src="${img.data}" alt="${img.name}">
+                    <button type="button" class="remove-btn" onclick="removeBackgroundImage('${img.id}')">×</button>
+                </div>
+            `).join('');
+            
+            // Update image interval section visibility
+            const imageIntervalSection = document.getElementById('imageIntervalSection');
+            if (imageIntervalSection) {
+                if (backgroundImages.length > 1) {
+                    imageIntervalSection.style.display = 'block';
+                } else {
+                    imageIntervalSection.style.display = 'none';
+                }
+            }
         }
         
         function startBackgroundImageRotation() {
@@ -461,21 +484,19 @@
                                         `).join('')}
                                     </div>
                                     
-                                    ${backgroundImages.length > 1 ? `
-                                        <div>
-                                            <label class="block text-sm font-medium text-black mb-2">
-                                                Image Change Interval (seconds)
-                                            </label>
-                                            <input
-                                                type="number"
-                                                id="imageInterval"
-                                                min="1"
-                                                max="60"
-                                                value="${imageInterval}"
-                                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-                                            />
-                                        </div>
-                                    ` : ''}
+                                    <div id="imageIntervalSection" style="display: ${backgroundImages.length > 1 ? 'block' : 'none'};">
+                                        <label class="block text-sm font-medium text-black mb-2">
+                                            Image Change Interval (seconds)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            id="imageInterval"
+                                            min="1"
+                                            max="60"
+                                            value="${imageInterval}"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                                        />
+                                    </div>
                                 </div>
 
                                 <!-- Customization -->
