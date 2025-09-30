@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getTimezoneOptions, getFontOptions } from '@/lib/countdown-utils';
 import { createCountdown } from '@/lib/client-database';
@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 export default function Home() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [storageUsage, setStorageUsage] = useState(0);
   const [showAllImages, setShowAllImages] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -34,6 +35,22 @@ export default function Home() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.title.trim()) {
+      alert('Please enter a countdown title');
+      return;
+    }
+    
+    if (!formData.targetDate) {
+      alert('Please select a target date');
+      return;
+    }
+    
+    if (new Date(formData.targetDate) <= new Date()) {
+      alert('Target date must be in the future');
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -44,8 +61,21 @@ export default function Home() {
       
       // Use replace instead of push to avoid history issues
       router.replace(`/${id}`);
-    } catch {
-      alert('Failed to create countdown');
+    } catch (error) {
+      console.error('Error creating countdown:', error);
+      
+      // Show specific error messages based on the error type
+      if (error instanceof Error) {
+        if (error.message.includes('quota') || error.message.includes('Storage')) {
+          alert('Storage limit exceeded! Please:\n\n• Remove some images\n• Use smaller images\n• Clear your browser data\n\nTry again with fewer or smaller images.');
+        } else if (error.message.includes('too large')) {
+          alert('Images are too large! Please:\n\n• Use smaller images\n• Remove some images\n• Try uploading fewer images at once');
+        } else {
+          alert(`Failed to create countdown: ${error.message}`);
+        }
+      } else {
+        alert('Failed to create countdown. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -79,6 +109,50 @@ export default function Home() {
   };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Calculate storage usage
+  const calculateStorageUsage = useCallback(() => {
+    const data = JSON.stringify(formData);
+    const sizeInMB = data.length / (1024 * 1024);
+    setStorageUsage(sizeInMB);
+  }, [formData]);
+
+  // Update storage usage when form data changes
+  useEffect(() => {
+    calculateStorageUsage();
+  }, [calculateStorageUsage]);
+
+  // Compress image to reduce storage size
+  const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.7): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // Calculate new dimensions
+        let { width, height } = img;
+        
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Draw and compress
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Convert to compressed data URL
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressedDataUrl);
+      };
+      
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = URL.createObjectURL(file);
+    });
+  };
 
   const processFiles = async (files: File[]) => {
     for (const file of files) {
@@ -119,19 +193,39 @@ export default function Home() {
             }
           }
           
-          const reader = new FileReader();
-          reader.onload = (event) => {
+          // Compress the image to reduce storage size
+          try {
+            const compressedDataUrl = await compressImage(processedFile, 800, 0.7);
+            
             const imageData = {
               id: uuidv4(),
-              data: event.target?.result as string,
+              data: compressedDataUrl,
               name: file.name // Keep original name
             };
+            
             setFormData(prev => ({
               ...prev,
               backgroundImages: [...prev.backgroundImages, imageData]
             }));
-          };
-          reader.readAsDataURL(processedFile);
+            
+            console.log(`Image compressed: ${file.name} (${Math.round(compressedDataUrl.length / 1024)}KB)`);
+          } catch (compressError) {
+            console.error('Error compressing image:', file.name, compressError);
+            // Fallback to original processing
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              const imageData = {
+                id: uuidv4(),
+                data: event.target?.result as string,
+                name: file.name
+              };
+              setFormData(prev => ({
+                ...prev,
+                backgroundImages: [...prev.backgroundImages, imageData]
+              }));
+            };
+            reader.readAsDataURL(processedFile);
+          }
           
         } catch (error) {
           console.error('Error processing image:', file.name, error);
@@ -574,6 +668,44 @@ export default function Home() {
                       Show less
                     </button>
                   )}
+                  
+                  {/* Storage Usage Indicator */}
+                  <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-blue-800">Storage Usage</span>
+                      <span className={`text-sm font-bold ${
+                        storageUsage > 3 ? 'text-red-600' : 
+                        storageUsage > 2 ? 'text-yellow-600' : 'text-green-600'
+                      }`}>
+                        {storageUsage.toFixed(2)} MB
+                      </span>
+                    </div>
+                    <div className="w-full bg-blue-200 rounded-full h-3">
+                      <div 
+                        className={`h-3 rounded-full transition-all duration-500 ${
+                          storageUsage > 3 ? 'bg-gradient-to-r from-red-400 to-red-500' : 
+                          storageUsage > 2 ? 'bg-gradient-to-r from-yellow-400 to-yellow-500' : 
+                          'bg-gradient-to-r from-green-400 to-green-500'
+                        }`}
+                        style={{ width: `${Math.min(100, (storageUsage / 5) * 100)}%` }}
+                      />
+                    </div>
+                    <div className="mt-2 text-xs text-blue-700">
+                      {storageUsage > 3 ? (
+                        <span className="text-red-600 font-semibold">
+                          ⚠️ Storage limit approaching! Consider removing some images or using smaller files.
+                        </span>
+                      ) : storageUsage > 2 ? (
+                        <span className="text-yellow-600 font-semibold">
+                          ⚡ Getting close to storage limit. Consider optimizing images.
+                        </span>
+                      ) : (
+                        <span className="text-green-600">
+                          ✅ Storage usage is healthy
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
               

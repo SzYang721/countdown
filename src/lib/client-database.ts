@@ -50,9 +50,38 @@ function saveCountdowns(countdowns: Countdown[]): void {
   if (typeof window === 'undefined') return;
   
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(countdowns));
+    const data = JSON.stringify(countdowns);
+    
+    // Check if data exceeds localStorage quota (roughly 5MB limit)
+    if (data.length > 4 * 1024 * 1024) { // 4MB threshold
+      throw new Error('Data too large for localStorage. Please reduce image sizes or remove some images.');
+    }
+    
+    localStorage.setItem(STORAGE_KEY, data);
   } catch (error) {
     console.error('Error saving to localStorage:', error);
+    
+    // If it's a quota exceeded error, try to clean up old countdowns
+    if (error instanceof Error && error.name === 'QuotaExceededError') {
+      console.warn('localStorage quota exceeded. Attempting to clean up old countdowns...');
+      
+      // Keep only the 5 most recent countdowns
+      const recentCountdowns = countdowns
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 5);
+      
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(recentCountdowns));
+        console.log('Successfully cleaned up old countdowns');
+      } catch (cleanupError) {
+        console.error('Failed to clean up old countdowns:', cleanupError);
+        // If still failing, clear all data
+        localStorage.removeItem(STORAGE_KEY);
+        throw new Error('Storage quota exceeded. Please clear your browser data or use smaller images.');
+      }
+    } else {
+      throw error;
+    }
   }
 }
 
