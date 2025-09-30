@@ -78,29 +78,60 @@ export default function Home() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    files.forEach(file => {
+    
+    for (const file of files) {
       if (file.type.startsWith('image/') || 
           file.type === 'image/heif' || 
           file.type === 'image/heic' ||
           file.name.toLowerCase().endsWith('.heif') ||
           file.name.toLowerCase().endsWith('.heic')) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const imageData = {
-            id: uuidv4(),
-            data: event.target?.result as string,
-            name: file.name
+        
+        try {
+          let processedFile = file;
+          
+          // Check if it's a HEIC/HEIF file that needs conversion
+          if (file.type === 'image/heic' || file.type === 'image/heif' || 
+              file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
+            
+            console.log('Converting HEIC/HEIF file:', file.name);
+            
+            // Dynamically import heic2any
+            const heic2any = (await import('heic2any')).default;
+            
+            // Convert HEIC to JPEG using heic2any
+            const convertedBlob = await heic2any({
+              blob: file,
+              toType: 'image/jpeg',
+              quality: 0.8
+            });
+            
+            // heic2any returns an array, take the first element
+            processedFile = Array.isArray(convertedBlob) ? convertedBlob[0] as File : convertedBlob as File;
+            console.log('HEIC conversion successful');
+          }
+          
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const imageData = {
+              id: uuidv4(),
+              data: event.target?.result as string,
+              name: file.name // Keep original name
+            };
+            setFormData(prev => ({
+              ...prev,
+              backgroundImages: [...prev.backgroundImages, imageData]
+            }));
           };
-          setFormData(prev => ({
-            ...prev,
-            backgroundImages: [...prev.backgroundImages, imageData]
-          }));
-        };
-        reader.readAsDataURL(file);
+          reader.readAsDataURL(processedFile);
+          
+        } catch (error) {
+          console.error('Error processing image:', error);
+          alert('Error processing image: ' + (error as Error).message);
+        }
       }
-    });
+    }
   };
 
   const removeImage = (imageId: string) => {

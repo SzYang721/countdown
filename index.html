@@ -88,6 +88,7 @@
         <!-- Main form will be inserted here -->
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
     <script>
         // Simple UUID generator
         function generateUUID() {
@@ -295,19 +296,45 @@
             saveBackgroundImages(backgroundImages);
         }
         
-        function addBackgroundImage(file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const imageData = {
-                    id: generateUUID(),
-                    data: e.target.result,
-                    name: file.name
+        async function addBackgroundImage(file) {
+            try {
+                let processedFile = file;
+                
+                // Check if it's a HEIC/HEIF file that needs conversion
+                if (file.type === 'image/heic' || file.type === 'image/heif' || 
+                    file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
+                    
+                    console.log('Converting HEIC/HEIF file:', file.name);
+                    
+                    // Convert HEIC to JPEG using heic2any
+                    const convertedBlob = await heic2any({
+                        blob: file,
+                        toType: 'image/jpeg',
+                        quality: 0.8
+                    });
+                    
+                    // heic2any returns an array, take the first element
+                    processedFile = convertedBlob[0];
+                    console.log('HEIC conversion successful');
+                }
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const imageData = {
+                        id: generateUUID(),
+                        data: e.target.result,
+                        name: file.name // Keep original name
+                    };
+                    backgroundImages.push(imageData);
+                    saveBackgroundImagesToStorage();
+                    updateImagePreviews(); // Only update image previews, not the entire form
                 };
-                backgroundImages.push(imageData);
-                saveBackgroundImagesToStorage();
-                updateImagePreviews(); // Only update image previews, not the entire form
-            };
-            reader.readAsDataURL(file);
+                reader.readAsDataURL(processedFile);
+                
+            } catch (error) {
+                console.error('Error processing image:', error);
+                alert('Error processing image: ' + error.message);
+            }
         }
         
         function removeBackgroundImage(imageId) {
@@ -608,18 +635,18 @@
                 });
                 
                 // File input change
-                fileInput.addEventListener('change', (e) => {
+                fileInput.addEventListener('change', async (e) => {
                     const files = Array.from(e.target.files);
                     console.log('Files selected:', files);
-                    files.forEach(file => {
+                    for (const file of files) {
                         if (file.type.startsWith('image/') || 
                             file.type === 'image/heif' || 
                             file.type === 'image/heic' ||
                             file.name.toLowerCase().endsWith('.heif') ||
                             file.name.toLowerCase().endsWith('.heic')) {
-                            addBackgroundImage(file);
+                            await addBackgroundImage(file);
                         }
-                    });
+                    }
                 });
                 
                 // Drag and drop
@@ -632,21 +659,21 @@
                     dropzone.classList.remove('dragover');
                 });
                 
-                dropzone.addEventListener('drop', (e) => {
+                dropzone.addEventListener('drop', async (e) => {
                     e.preventDefault();
                     dropzone.classList.remove('dragover');
                     
                     const files = Array.from(e.dataTransfer.files);
                     console.log('Files dropped:', files);
-                    files.forEach(file => {
+                    for (const file of files) {
                         if (file.type.startsWith('image/') || 
                             file.type === 'image/heif' || 
                             file.type === 'image/heic' ||
                             file.name.toLowerCase().endsWith('.heif') ||
                             file.name.toLowerCase().endsWith('.heic')) {
-                            addBackgroundImage(file);
+                            await addBackgroundImage(file);
                         }
-                    });
+                    }
                 });
             }, 100);
         }
