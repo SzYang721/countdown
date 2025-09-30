@@ -1,8 +1,8 @@
 import { CountdownClient } from './CountdownClient';
 
-// Required for static export
 export async function generateStaticParams() {
-  return [];
+  // Generate a placeholder to allow the route to be exported
+  return [{ id: 'placeholder' }];
 }
 
 export default function CountdownPage() {
