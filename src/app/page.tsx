@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getTimezoneOptions, getFontOptions } from '@/lib/countdown-utils';
+import { createCountdown } from '@/lib/client-database';
 
 export default function Home() {
   const router = useRouter();
@@ -32,24 +33,13 @@ export default function Home() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/countdown', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...formData,
-          workingHours: formData.countType === 'working' ? formData.workingHours : undefined,
-        }),
+      const id = await createCountdown({
+        ...formData,
+        workingHours: formData.countType === 'working' ? formData.workingHours : undefined,
       });
-
-      if (response.ok) {
-        const { id } = await response.json();
-        router.push(`/countdown/${id}`);
-      } else {
-        alert('Failed to create countdown');
-      }
-    } catch {
+      
+      router.push(`/countdown/${id}`);
+    } catch (error) {
       alert('Failed to create countdown');
     } finally {
       setLoading(false);

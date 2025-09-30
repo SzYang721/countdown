@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Countdown App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/uuid@9.0.0/dist/umd/uuid.min.js"></script>
+    <style>
+        .time-unit {
+            background: black;
+            color: white;
+            border-radius: 8px;
+            padding: 16px 24px;
+            text-align: center;
+        }
+        .time-number {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .time-label {
+            font-size: 1rem;
+            opacity: 0.8;
+        }
+        @media (max-width: 768px) {
+            .time-number {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-50">
+    <div id="app">
+        <!-- Main form will be inserted here -->
+    </div>
+
+    <script>
+        // Countdown data storage
+        const STORAGE_KEY = 'countdowns';
+        
+        // Get countdowns from localStorage
+        function getStoredCountdowns() {
+            try {
+                const stored = localStorage.getItem(STORAGE_KEY);
+                return stored ? JSON.parse(stored) : [];
+            } catch (error) {
+                console.error('Error reading from localStorage:', error);
+                return [];
+            }
+        }
+        
+        // Save countdowns to localStorage
+        function saveCountdowns(countdowns) {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(countdowns));
+            } catch (error) {
+                console.error('Error saving to localStorage:', error);
+            }
+        }
+        
+        // Create a new countdown
+        function createCountdown(countdown) {
+            const id = uuid.v4();
+            const now = new Date().toISOString();
+            
+            const fullCountdown = {
+                id,
+                ...countdown,
+                createdAt: now,
+                updatedAt: now,
+            };
+            
+            const countdowns = getStoredCountdowns();
+            countdowns.push(fullCountdown);
+            saveCountdowns(countdowns);
+            
+            return id;
+        }
+        
+        // Get a countdown by ID
+        function getCountdown(id) {
+            const countdowns = getStoredCountdowns();
+            return countdowns.find(c => c.id === id) || null;
+        }
+        
+        // Update a countdown
+        function updateCountdown(id, updates) {
+            const countdowns = getStoredCountdowns();
+            const index = countdowns.findIndex(c => c.id === id);
+            
+            if (index === -1) throw new Error('Countdown not found');
+            
+            const now = new Date().toISOString();
+            countdowns[index] = {
+                ...countdowns[index],
+                ...updates,
+                updatedAt: now,
+            };
+            
+            saveCountdowns(countdowns);
+        }
+        
+        // Delete a countdown
+        function deleteCountdown(id) {
+            const countdowns = getStoredCountdowns();
+            const filtered = countdowns.filter(c => c.id !== id);
+            saveCountdowns(filtered);
+        }
+        
+        // Calculate time remaining
+        function calculateTimeRemaining(countdown) {
+            const now = new Date();
+            const target = new Date(countdown.targetDate);
+            
+            if (countdown.countType === 'natural') {
+                return calculateNaturalTime(now, target);
+            } else {
+                return calculateWorkingTime(now, target, countdown.workingHours);
+            }
+        }
+        
+        function calculateNaturalTime(now, target) {
+            const diff = target.getTime() - now.getTime();
+            
+            if (diff <= 0) {
+                return { days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true };
+            }
+            
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            
+            return { days, hours, minutes, seconds, isExpired: false };
+        }
+        
+        function calculateWorkingTime(now, target, workingHours) {
+            if (!workingHours) {
+                return calculateNaturalTime(now, target);
+            }
+            
+            // Simplified working time calculation
+            // For now, just use natural time
+            return calculateNaturalTime(now, target);
+        }
+        
+        // Timezone options
+        const timezoneOptions = [
+            { value: 'UTC', label: 'UTC' },
+            { value: 'America/New_York', label: 'Eastern Time (US)' },
+            { value: 'America/Chicago', label: 'Central Time (US)' },
+            { value: 'America/Denver', label: 'Mountain Time (US)' },
+            { value: 'America/Los_Angeles', label: 'Pacific Time (US)' },
+            { value: 'Europe/London', label: 'London' },
+            { value: 'Europe/Paris', label: 'Paris' },
+            { value: 'Europe/Berlin', label: 'Berlin' },
+            { value: 'Asia/Tokyo', label: 'Tokyo' },
+            { value: 'Asia/Shanghai', label: 'Shanghai' },
+            { value: 'Asia/Hong_Kong', label: 'Hong Kong' },
+            { value: 'Australia/Sydney', label: 'Sydney' },
+        ];
+        
+        // Font options
+        const fontOptions = [
+            { value: 'Arial, sans-serif', label: 'Arial' },
+            { value: 'Georgia, serif', label: 'Georgia' },
+            { value: 'Times New Roman, serif', label: 'Times New Roman' },
+            { value: 'Helvetica, sans-serif', label: 'Helvetica' },
+            { value: 'Verdana, sans-serif', label: 'Verdana' },
+            { value: 'Courier New, monospace', label: 'Courier New' },
+            { value: 'Impact, sans-serif', label: 'Impact' },
+            { value: 'Comic Sans MS, cursive', label: 'Comic Sans MS' },
+        ];
+        
+        // Main app state
+        let currentView = 'form'; // 'form' or 'countdown'
+        let currentCountdown = null;
+        let timeRemaining = null;
+        
+        // Render functions
+        function renderForm() {
+            const formData = {
+                title: '',
+                targetDate: '',
+                timezone: 'UTC',
+                location: '',
+                countType: 'natural',
+                workingHours: {
+                    start: '09:00',
+                    end: '17:00',
+                    excludeWeekends: true,
+                },
+                customization: {
+                    backgroundColor: '#ffffff',
+                    textColor: '#1a1a1a',
+                    titleColor: '#000000',
+                    fontFamily: 'Arial, sans-serif',
+                    fontSize: '18px',
+                },
+            };
+            
+            document.getElementById('app').innerHTML = `
+                <div class="min-h-screen bg-gray-50 py-12 px-4">
+                    <div class="max-w-2xl mx-auto">
+                        <div class="bg-white rounded-lg shadow-md p-8">
+                            <h1 class="text-3xl font-bold text-center mb-8 text-black">
+                                Create Your Countdown
+                            </h1>
+                            
+                            <form id="countdownForm" class="space-y-6">
+                                <!-- Basic Information -->
+                                <div class="space-y-4">
+                                    <h2 class="text-xl font-semibold text-black">Basic Information</h2>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-black mb-2">
+                                            Event Title
+                                        </label>
+                                        <input
+                                            type="text"
+                                            required
+                                            id="title"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                                            placeholder="e.g., New Year 2025"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-black mb-2">
+                                            Target Date & Time
+                                        </label>
+                                        <input
+                                            type="datetime-local"
+                                            required
+                                            id="targetDate"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-black mb-2">
+                                            Timezone
+                                        </label>
+                                        <select
+                                            id="timezone"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                                        >
+                                            ${timezoneOptions.map(option => 
+                                                `<option value="${option.value}">${option.label}</option>`
+                                            ).join('')}
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-black mb-2">
+                                            Location (Optional)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            id="location"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                                            placeholder="e.g., New York, USA"
+                                        />
+                                    </div>
+                                </div>
+
+                                <!-- Countdown Type -->
+                                <div class="space-y-4">
+                                    <h2 class="text-xl font-semibold text-black">Countdown Type</h2>
+                                    
+                                    <div class="space-y-2">
+                                        <label class="flex items-center">
+                                            <input
+                                                type="radio"
+                                                name="countType"
+                                                value="natural"
+                                                checked
+                                                class="mr-2"
+                                            />
+                                            Natural Time (24/7)
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input
+                                                type="radio"
+                                                name="countType"
+                                                value="working"
+                                                class="mr-2"
+                                            />
+                                            Working Hours Only
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Customization -->
+                                <div class="space-y-4">
+                                    <h2 class="text-xl font-semibold text-black">Customization</h2>
+                                    
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-black mb-2">
+                                                Background Color
+                                            </label>
+                                            <input
+                                                type="color"
+                                                id="backgroundColor"
+                                                value="#ffffff"
+                                                class="w-full h-10 border border-gray-300 rounded-md"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-black mb-2">
+                                                Text Color
+                                            </label>
+                                            <input
+                                                type="color"
+                                                id="textColor"
+                                                value="#1a1a1a"
+                                                class="w-full h-10 border border-gray-300 rounded-md"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-black mb-2">
+                                            Title Color
+                                        </label>
+                                        <input
+                                            type="color"
+                                            id="titleColor"
+                                            value="#000000"
+                                            class="w-full h-10 border border-gray-300 rounded-md"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-black mb-2">
+                                            Font Family
+                                        </label>
+                                        <select
+                                            id="fontFamily"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                                        >
+                                            ${fontOptions.map(option => 
+                                                `<option value="${option.value}">${option.label}</option>`
+                                            ).join('')}
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-black mb-2">
+                                            Font Size
+                                        </label>
+                                        <select
+                                            id="fontSize"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                                        >
+                                            <option value="14px">Small (14px)</option>
+                                            <option value="18px" selected>Medium (18px)</option>
+                                            <option value="22px">Large (22px)</option>
+                                            <option value="28px">Extra Large (28px)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    class="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    Create Countdown
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Add form submission handler
+            document.getElementById('countdownForm').addEventListener('submit', handleFormSubmit);
+        }
+        
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            
+            const formData = {
+                title: document.getElementById('title').value,
+                targetDate: document.getElementById('targetDate').value,
+                timezone: document.getElementById('timezone').value,
+                location: document.getElementById('location').value,
+                countType: document.querySelector('input[name="countType"]:checked').value,
+                workingHours: {
+                    start: '09:00',
+                    end: '17:00',
+                    excludeWeekends: true,
+                },
+                customization: {
+                    backgroundColor: document.getElementById('backgroundColor').value,
+                    textColor: document.getElementById('textColor').value,
+                    titleColor: document.getElementById('titleColor').value,
+                    fontFamily: document.getElementById('fontFamily').value,
+                    fontSize: document.getElementById('fontSize').value,
+                },
+            };
+            
+            const id = createCountdown(formData);
+            showCountdown(id);
+        }
+        
+        function showCountdown(id) {
+            currentCountdown = getCountdown(id);
+            if (!currentCountdown) {
+                alert('Countdown not found');
+                return;
+            }
+            
+            currentView = 'countdown';
+            renderCountdown();
+            startCountdownTimer();
+        }
+        
+        function renderCountdown() {
+            if (!currentCountdown) return;
+            
+            const customStyle = `
+                background-color: ${currentCountdown.customization.backgroundColor};
+                color: ${currentCountdown.customization.textColor};
+                font-family: ${currentCountdown.customization.fontFamily};
+                font-size: ${currentCountdown.customization.fontSize};
+            `;
+            
+            const titleStyle = `
+                color: ${currentCountdown.customization.titleColor};
+                font-family: ${currentCountdown.customization.fontFamily};
+            `;
+            
+            document.getElementById('app').innerHTML = `
+                <div class="min-h-screen flex flex-col" style="${customStyle}">
+                    <!-- Control Bar -->
+                    <div class="bg-gray-100 border-b p-4 flex justify-between items-center text-black">
+                        <div class="flex space-x-2">
+                            <button
+                                onclick="renderForm()"
+                                class="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700"
+                            >
+                                New Countdown
+                            </button>
+                            <button
+                                onclick="copyShareUrl()"
+                                class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                            >
+                                Share URL
+                            </button>
+                        </div>
+                        <div class="text-sm text-gray-800">
+                            ID: ${currentCountdown.id}
+                        </div>
+                    </div>
+
+                    <!-- Countdown Display -->
+                    <div class="flex-1 flex flex-col items-center justify-center p-8">
+                        <h1 class="text-4xl md:text-6xl font-bold mb-8 text-center" style="${titleStyle}">
+                            ${currentCountdown.title}
+                        </h1>
+
+                        ${currentCountdown.location ? `
+                            <p class="text-xl mb-8 opacity-80 text-center">
+                                📍 ${currentCountdown.location}
+                            </p>
+                        ` : ''}
+
+                        <div id="countdownDisplay" class="text-center">
+                            <!-- Countdown will be updated here -->
+                        </div>
+
+                        <div class="mt-8 text-sm opacity-80 text-center">
+                            <p>Countdown Type: ${currentCountdown.countType === 'natural' ? 'Natural Time (24/7)' : 'Working Hours Only'}</p>
+                            <p>Timezone: ${currentCountdown.timezone}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function startCountdownTimer() {
+            const updateCountdown = () => {
+                if (!currentCountdown) return;
+                
+                timeRemaining = calculateTimeRemaining(currentCountdown);
+                const display = document.getElementById('countdownDisplay');
+                
+                if (!display) return;
+                
+                if (timeRemaining.isExpired) {
+                    display.innerHTML = `
+                        <div class="text-6xl md:text-8xl font-bold mb-4 animate-pulse">
+                            🎉 TIME'S UP! 🎉
+                        </div>
+                    `;
+                } else {
+                    display.innerHTML = `
+                        <div class="grid grid-cols-4 gap-4 md:gap-8 text-center">
+                            <div class="time-unit">
+                                <div class="time-number">${timeRemaining.days.toString().padStart(2, '0')}</div>
+                                <div class="time-label">Days</div>
+                            </div>
+                            <div class="time-unit">
+                                <div class="time-number">${timeRemaining.hours.toString().padStart(2, '0')}</div>
+                                <div class="time-label">Hours</div>
+                            </div>
+                            <div class="time-unit">
+                                <div class="time-number">${timeRemaining.minutes.toString().padStart(2, '0')}</div>
+                                <div class="time-label">Minutes</div>
+                            </div>
+                            <div class="time-unit">
+                                <div class="time-number">${timeRemaining.seconds.toString().padStart(2, '0')}</div>
+                                <div class="time-label">Seconds</div>
+                            </div>
+                        </div>
+                    `;
+                }
+            };
+            
+            updateCountdown();
+            setInterval(updateCountdown, 1000);
+        }
+        
+        function copyShareUrl() {
+            const url = window.location.href;
+            navigator.clipboard.writeText(url).then(() => {
+                alert('Share URL copied to clipboard!');
+            });
+        }
+        
+        // Check if we're viewing a specific countdown
+        function checkForCountdownId() {
+            const hash = window.location.hash;
+            if (hash && hash.startsWith('#/countdown/')) {
+                const id = hash.replace('#/countdown/', '');
+                showCountdown(id);
+            } else {
+                renderForm();
+            }
+        }
+        
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', checkForCountdownId);
+        
+        // Handle browser back/forward
+        window.addEventListener('hashchange', checkForCountdownId);
+    </script>
+</body>
+</html>
