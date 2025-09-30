@@ -42,7 +42,8 @@ export default function Home() {
         workingHours: formData.countType === 'working' ? formData.workingHours : undefined,
       });
       
-      router.push(`/${id}`);
+      // Use replace instead of push to avoid history issues
+      router.replace(`/${id}`);
     } catch {
       alert('Failed to create countdown');
     } finally {

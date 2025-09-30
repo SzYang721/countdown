@@ -31,8 +31,17 @@ export function RedirectHandler() {
       
       console.log('Routing to:', path);
       
+      // Handle dynamic countdown routes
       if (path && path !== '/') {
-        router.replace(path);
+        // Check if this looks like a UUID (countdown ID)
+        const pathSegments = path.split('/').filter(Boolean);
+        if (pathSegments.length === 1 && pathSegments[0].length > 10) {
+          // This looks like a countdown ID, navigate to it
+          router.replace(path);
+        } else {
+          // Other routes
+          router.replace(path);
+        }
       }
     }
   }, [router]);

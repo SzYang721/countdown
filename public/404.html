@@ -7,8 +7,16 @@
     // GitHub Pages SPA redirect helper
     // Store the path for the client-side router to use
     sessionStorage.setItem('redirect', location.pathname + location.search + location.hash);
-    // Redirect to the base path
-    location.replace('/countdown/');
+    
+    // Check if this is a countdown ID route
+    const path = location.pathname;
+    if (path.startsWith('/countdown/') && path !== '/countdown/') {
+      // This looks like a countdown ID, redirect to base path to let client-side router handle it
+      location.replace('/countdown/');
+    } else {
+      // Regular redirect to base path
+      location.replace('/countdown/');
+    }
   </script>
 </head>
 <body>

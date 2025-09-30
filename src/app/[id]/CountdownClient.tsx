@@ -25,10 +25,17 @@ export function CountdownClient() {
       if (countdownData) {
         setCountdown(countdownData);
       } else {
-        setError('Countdown not found');
+        // Check if this is a valid UUID format
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (uuidRegex.test(id)) {
+          setError('Countdown not found. It may have been deleted or the link is invalid.');
+        } else {
+          setError('Invalid countdown ID format.');
+        }
       }
-    } catch {
-      setError('Failed to load countdown');
+    } catch (error) {
+      console.error('Error fetching countdown:', error);
+      setError('Failed to load countdown. Please try again.');
     } finally {
       setLoading(false);
     }
