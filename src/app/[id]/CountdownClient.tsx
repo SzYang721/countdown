@@ -72,6 +72,24 @@ export function CountdownClient() {
     return () => clearInterval(interval);
   }, [countdown?.backgroundImages, countdown?.imageInterval]);
 
+  // Handle the case where we're in development mode and the route doesn't exist
+  if (!id) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Invalid Countdown ID</h1>
+          <p className="text-gray-600 mb-4">The countdown ID is missing or invalid.</p>
+          <button
+            onClick={() => router.push('/')}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+          >
+            Create New Countdown
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this countdown?')) return;
 
