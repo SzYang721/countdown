@@ -13,14 +13,20 @@ export function RedirectHandler() {
       sessionStorage.removeItem('redirect');
       console.log('Redirect from 404:', redirect);
       
-      // The redirect contains the full path like: /countdown/countdown/abc123
-      // We need to remove only the first /countdown (basePath) and keep the rest
-      // So /countdown/countdown/abc123 becomes /countdown/abc123
+      // With basePath '/countdown', URLs are structured as:
+      // Browser: /countdown/abc123 → App route: /abc123
+      // Remove the basePath prefix to get the app route
       let path = redirect;
       
-      // Remove the basePath prefix only once
       if (path.startsWith('/countdown/')) {
-        path = path.substring('/countdown'.length); // Remove first /countdown
+        path = path.substring('/countdown'.length); // Remove basePath prefix
+      } else if (path.startsWith('/countdown')) {
+        path = path.substring('/countdown'.length); // Handle edge case without trailing slash
+      }
+      
+      // Ensure path starts with /
+      if (path && !path.startsWith('/')) {
+        path = '/' + path;
       }
       
       console.log('Routing to:', path);
