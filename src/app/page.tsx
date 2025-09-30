@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 export default function Home() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [showAllImages, setShowAllImages] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     targetDate: '',
@@ -423,23 +424,48 @@ export default function Home() {
               </div>
               
               {formData.backgroundImages.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {formData.backgroundImages.map(img => (
-                    <div key={img.id} className="relative">
-                      <img 
-                        src={img.data} 
-                        alt={img.name}
-                        className="w-20 h-20 object-cover rounded border"
-                      />
+                <div>
+                  <div className="mb-2 text-sm font-medium text-green-700 bg-green-50 px-3 py-2 rounded-md border border-green-200">
+                    ✓ {formData.backgroundImages.length} {formData.backgroundImages.length === 1 ? 'image' : 'images'} uploaded successfully
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(showAllImages ? formData.backgroundImages : formData.backgroundImages.slice(0, 8)).map(img => (
+                      <div key={img.id} className="relative group">
+                        <img 
+                          src={img.data} 
+                          alt={img.name}
+                          className="w-20 h-20 object-cover rounded border border-gray-300 group-hover:border-blue-400 transition-colors"
+                          title={img.name}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(img.id)}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 shadow-md"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    {!showAllImages && formData.backgroundImages.length > 8 && (
                       <button
                         type="button"
-                        onClick={() => removeImage(img.id)}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                        onClick={() => setShowAllImages(true)}
+                        className="w-20 h-20 rounded border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-gray-400 flex flex-col items-center justify-center text-gray-600 hover:text-gray-800 transition-colors"
                       >
-                        ×
+                        <span className="text-2xl font-bold">+{formData.backgroundImages.length - 8}</span>
+                        <span className="text-xs">more</span>
                       </button>
-                    </div>
-                  ))}
+                    )}
+                  </div>
+                  {showAllImages && formData.backgroundImages.length > 8 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllImages(false)}
+                      className="mt-2 text-sm text-blue-600 hover:text-blue-800 underline"
+                    >
+                      Show less
+                    </button>
+                  )}
                 </div>
               )}
               
