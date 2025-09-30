@@ -107,8 +107,9 @@ export default function Home() {
               quality: 0.8
             });
             
-            // heic2any returns an array, take the first element
-            processedFile = Array.isArray(convertedBlob) ? convertedBlob[0] as File : convertedBlob as File;
+            // heic2any returns an array, take the first element and ensure it's a proper File
+            const blob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+            processedFile = new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
             console.log('HEIC conversion successful');
           }
           
@@ -131,6 +132,11 @@ export default function Home() {
           alert('Error processing image: ' + (error as Error).message);
         }
       }
+    }
+    
+    // Reset the file input to allow selecting the same file again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 

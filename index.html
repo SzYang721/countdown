@@ -313,8 +313,9 @@
                         quality: 0.8
                     });
                     
-                    // heic2any returns an array, take the first element
-                    processedFile = convertedBlob[0];
+                    // heic2any returns an array, take the first element and ensure it's a Blob
+                    const blob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+                    processedFile = new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
                     console.log('HEIC conversion successful');
                 }
                 
@@ -647,6 +648,8 @@
                             await addBackgroundImage(file);
                         }
                     }
+                    // Reset the file input to allow selecting the same file again
+                    e.target.value = '';
                 });
                 
                 // Drag and drop
